@@ -20,8 +20,46 @@ class MyHandler(BaseHTTPRequestHandler):
             elif self.path.endswith(".gif"):
                 self.contentType = "application/gif"
             elif self.path.endswith(".png"):
-                self.contentType = "application/png"
+                self.contentType = 'application/png'
+            elif self.path.endswith("/services/channel"):
+                print "Sending channel"
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write('{"result":true,"action":"\/soma\/services\/channel","channels":8}')
+                return
+            elif self.path.endswith("/services/pattern"):
+                print "Sending patterns"
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write('{"result":true,"action":"\/soma\/services\/pattern","patterns":"pattern1\npattern2\npattern3\npattern4"}')
+                return
+            elif self.path.endswith("/services/rate"):
+                print "Sending rate"
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write('{"result":true,"action":"\/soma\/services\/rate","rate":12000}')
+                return
+            elif self.path.endswith("/pattern"):
+                self.pathlist = self.path.split("/")
+                self.channel = self.pathlist[len(self.pathlist)-2]
+                print "Sending pattern"
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write('{"result":true,"action":"\/soma/\services\/channel\/' + self.channel + '/pattern","pattern":"pattern'+str(int(self.channel)+1)+'"}')
+                return
+            elif self.path.endswith("/state"):
+                self.pathlist = self.path.split("/")
+                self.channel = self.pathlist[len(self.pathlist)-2]
+                print "Sending state"
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write('{"result":true,"action":"\/soma/\services\/channel\/' + self.channel + '/state","state":"off"}')
+                return
             else:
+                self.send_response(404)
                 return # don't hand back just anything
 
             f = open(curdir + sep + self.path) #self.path has /test.html
@@ -36,26 +74,6 @@ class MyHandler(BaseHTTPRequestHandler):
 
         except IOError:
             self.send_error(404,'File Not Found: %s' % self.path)
-     
-
-    def do_POST(self):
-        global rootnode
-
-        if self.path.endswith(".orb"):   #our dynamic content
-            self.send_response(200)
-            self.send_header('Content-type',	'text/html')
-            self.end_headers()
-            self.wfile.write("hey, today is the" + str(time.localtime()[7]))
-            self.wfile.write(" day in the year " + str(time.localtime()[0]))
-            return
-
-        self.length = int(self.headers.getheader('content-length'))
-        print "Content length: " + str(self.length)
-        self.raw_post = self.rfile.read(self.length)
-        print "Content: " + self.raw_post
-        self.data = cgi.parse_qsl(self.raw_post)[0][1]
-        print "Data: " + self.data
-        self.cmd = self.data[1:-1]
 
 def main():
     try:
