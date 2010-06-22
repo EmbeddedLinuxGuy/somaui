@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+
+# 2010 Jesse Zbikowski embeddedlinuxguy [at] gmail [dot] com
+# for Flaming Lotus Girls flaminglotus.com
+
+# 2005 test_pyportmidi.py by John Harrison harrison [at] media [dot] mit [dot] edu
+
+import pypm
+import array
+import time
+import sys
+sys.path.append("/opt/local/lib/python2.4/site-packages")
+import pycurl
+
+def assignToChannel(buf):
+    global CHANNEL
+    global c # curl request
+    for line in buf.splitlines():
+        if CHANNEL < 8:
+            c.setopt(c.URL, urlbase+'channel/'+str(CHANNEL)+'/pattern/'+line)
+            c.perform()
+            CHANNEL += 1
+
+def assignPalettes():
+    cu = pycurl.Curl()
+    cu.setopt(cu.WRITEFUNCTION, assignToChannel)
+    cu.setopt(cu.URL, urlbase + 'patterns')
+    cu.perform()
+    del cu
+
+def MidiLoop(dev):
+    MidiIn = pypm.Input(dev)
+    assignPalettes()
+
+    for cntr in range(1,NUM_MSGS+1):
+        while not MidiIn.Poll(): pass
+        MidiData = MidiIn.Read(1) # read only 1 message at a time
+        [maj, ch, ve, sx] = MidiData[0][0]
+        kn = KNOB.get(ch, 0)
+
+        if maj == 224: pass # ignore bender as it talks a lot
+#            print "Bender vel?=", ch," pos=",ve
+        elif (maj == 144) and (ve > 0):
+            print "Key[36-60] ", ch," vel=",ve
+            url = urlbase + 'channel/' + str(ch%8) + '/state/single'
+            c.setopt(c.URL, url)
+            c.perform()
+        elif (maj == 144) and (ve == 0): pass
+        elif (maj == 176) and kn:
+            print "Knob [", kn, "] ", ve
+#            c.setopt(c.URL, urlbase + '/patterns')
+#            c.perform()
+        elif (maj == 176) and (ch == 1):
+            print "Wheel ", ve
+        elif (maj == 176) and (ch == 7):
+            print "Slider ", ve
+
+        else:
+            print "Got message ",cntr,": time ",MidiData[0][1],", ",
+            print  maj," ",ch," ",ve
+    del MidiIn
+
+# main
+# always call this first or OS may crash when you try to open a stream
+pypm.Initialize()
+c = pycurl.Curl()
+c.setopt(c.WRITEFUNCTION, sys.stdout.write)
+NUM_MSGS = 999999 # number of MIDI messages for input before closing
+KNOB = { 74: 1, 71: 2, 81: 3, 91: 4, 16: 5, 80: 6, 19: 7, 2: 8 }
+urlbase = 'http://localhost:1080/'
+CHANNEL = 0
+
+MidiLoop(0)
